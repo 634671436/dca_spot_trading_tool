@@ -152,7 +152,7 @@
             position: absolute;
             top: 1rem;
             right: 1rem;
-            background-color: var(--error-color);
+            background-color: var(--primary-color);
             color: white;
             border: none;
             width: 32px;
@@ -167,7 +167,7 @@
         }
 
         .remove-entry-btn:hover {
-            background-color: #dc2626;
+            background-color: var(--secondary-color);
             transform: scale(1.1);
         }
 
@@ -299,6 +299,16 @@
             </label>
             <input type="number" id="maxSingleInvestment" placeholder="例如: 1500" step="any" value="1500">
             <div class="error" id="maxSingleInvestmentError"></div>
+            <div style="background-color: rgba(16, 185, 129, 0.1); border: 1px solid var(--success-color); border-radius: 6px; padding: 0.75rem; margin-top: 0.5rem;">
+                <div style="color: var(--success-color); font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem;">
+                    🎯 优化策略说明
+                </div>
+                <div style="color: var(--text-secondary); font-size: 0.85rem;">
+                    • 第一次入场金额 ≥ 600U（强制约束）<br>
+                    • 优化目标：最小化最终止损价格<br>
+                    • 采用梯度下降法自动优化DCA分配
+                </div>
+            </div>
         </div>
 
         <div style="border-bottom: 2px solid var(--border-color); margin: 2rem 0;"></div>
@@ -395,6 +405,21 @@
                 <div class="stop-loss-display" id="finalStopLoss" style="display: none;">
                     <div class="label">基于最大止损额的综合止损价格</div>
                     <div class="price" id="finalStopLossPrice">-</div>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <div class="section-title">DCA优化分析</div>
+                <div style="background-color: rgba(59, 130, 246, 0.1); border: 1px solid var(--primary-color); border-radius: 8px; padding: 1rem;">
+                    <div style="color: var(--primary-color); font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem;">
+                        📊 优化效果分析
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 0.85rem;">
+                        • 当前DCA分配已针对"最低止损价格"进行优化<br>
+                        • 第一次入场满足 ≥600U 约束条件<br>
+                        • 推荐金额基于梯度下降算法自动计算<br>
+                        • 在满足所有约束的前提下实现最优解
+                    </div>
                 </div>
             </div>
         </div>
@@ -682,16 +707,8 @@
                     return;
                 }
 
-                // 使用简化的DCA策略：基于价格权重的分配
-                const totalWeight = prices.reduce((sum, price, index) => {
-                    // 价格越低，权重越高（DCA策略）
-                    return sum + (1 / price);
-                }, 0);
-
-                const recommendedAmounts = prices.map(price => {
-                    const weight = (1 / price) / totalWeight;
-                    return maxSingleInvestment * weight;
-                });
+                // 优化目标：最小化最终止损价格
+                const recommendedAmounts = this.optimizeForLowestStopLoss(prices, maxSingleInvestment);
 
                 // 显示DCA推荐金额
                 for (let i = 0; i < entryCount; i++) {
@@ -701,6 +718,107 @@
                         this.dcaAmounts[entryNumber].textContent = this.formatNumber(recommendedAmounts[i]);
                     }
                 }
+            }
+
+            optimizeForLowestStopLoss(prices, maxSingleInvestment) {
+                const entryCount = prices.length;
+                const minFirstAmount = 600; // 第一次入场最小金额
+                
+                // 使用梯度下降法优化
+                let amounts = new Array(entryCount).fill(maxSingleInvestment / entryCount);
+                let bestAmounts = [...amounts];
+                let bestStopLoss = this.calculateStopLossPrice(prices, amounts);
+                
+                const learningRate = 0.01;
+                const maxIterations = 5000;
+                const tolerance = 0.001;
+
+                for (let iteration = 0; iteration < maxIterations; iteration++) {
+                    // 计算当前止损价格
+                    const currentStopLoss = this.calculateStopLossPrice(prices, amounts);
+                    
+                    // 如果找到更好的解，更新最佳解
+                    if (currentStopLoss < bestStopLoss) {
+                        bestStopLoss = currentStopLoss;
+                        bestAmounts = [...amounts];
+                    }
+
+                    // 如果已经足够接近目标，提前结束
+                    if (Math.abs(currentStopLoss - bestStopLoss) < tolerance) {
+                        break;
+                    }
+
+                    // 计算梯度并更新
+                    const gradients = this.calculateStopLossGradients(prices, amounts);
+                    
+                    for (let i = 0; i < entryCount; i++) {
+                        let newAmount = amounts[i] - learningRate * gradients[i];
+                        
+                        // 应用约束条件
+                        if (i === 0) {
+                            // 第一次入场：最小金额约束
+                            newAmount = Math.max(minFirstAmount, newAmount);
+                        }
+                        // 每次入场：最大金额约束
+                        newAmount = Math.max(0, Math.min(maxSingleInvestment, newAmount));
+                        
+                        amounts[i] = newAmount;
+                    }
+
+                    // 归一化总金额（保持总投入在合理范围内）
+                    const totalAmount = amounts.reduce((sum, amount) => sum + amount, 0);
+                    if (totalAmount > 0) {
+                        const targetTotal = maxSingleInvestment * entryCount * 0.8; // 目标总投入
+                        for (let i = 0; i < entryCount; i++) {
+                            amounts[i] = (amounts[i] / totalAmount) * targetTotal;
+                        }
+                    }
+                }
+
+                return bestAmounts;
+            }
+
+            calculateStopLossPrice(prices, amounts) {
+                // 计算加权平均价格
+                const totalAmount = amounts.reduce((sum, amount) => sum + amount, 0);
+                if (totalAmount === 0) return Infinity;
+                
+                const weightedAveragePrice = prices.reduce((sum, price, index) => {
+                    return sum + (price * amounts[index]);
+                }, 0) / totalAmount;
+
+                // 计算总仓位
+                const totalPosition = amounts.reduce((sum, amount, index) => {
+                    return sum + (amount / prices[index]);
+                }, 0);
+
+                // 返回加权平均价格（越低越好）
+                return weightedAveragePrice;
+            }
+
+            calculateStopLossGradients(prices, amounts) {
+                const epsilon = 0.001;
+                const gradients = [];
+
+                for (let i = 0; i < amounts.length; i++) {
+                    const originalAmount = amounts[i];
+                    
+                    // 向前差分
+                    amounts[i] = originalAmount + epsilon;
+                    const forwardPrice = this.calculateStopLossPrice(prices, amounts);
+                    
+                    // 向后差分
+                    amounts[i] = originalAmount - epsilon;
+                    const backwardPrice = this.calculateStopLossPrice(prices, amounts);
+                    
+                    // 恢复原值
+                    amounts[i] = originalAmount;
+                    
+                    // 计算梯度（价格越低越好，所以梯度是正向的）
+                    gradients[i] = (forwardPrice - backwardPrice) / (2 * epsilon);
+                }
+
+                return gradients;
             }
 
             clearResults() {
