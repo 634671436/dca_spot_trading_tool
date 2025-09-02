@@ -284,7 +284,7 @@
         
         <div class="form-group">
             <label for="maxLoss">
-                单笔交易最大止损额 (USD)
+                交易最大止损额 (USD)
             </label>
             <input type="number" id="maxLoss" placeholder="例如: 1000" step="any">
             <div class="error" id="maxLossError"></div>
@@ -292,7 +292,7 @@
 
         <div class="form-group">
             <label for="maxSingleInvestment">
-                单次投入最大金额 (USD)
+                投入最大金额 (USD)
             </label>
             <input type="number" id="maxSingleInvestment" placeholder="例如: 1500" step="any" value="1500">
             <div class="error" id="maxSingleInvestmentError"></div>
@@ -376,7 +376,7 @@
                 ⚠️ 风险提醒
             </div>
             <div style="color: var(--error-color); font-size: 0.9rem;">
-                已超过总投入金额，请调整入场金额！
+                已超过投入最大金额，请调整入场金额！
             </div>
         </div>
 
@@ -833,7 +833,7 @@
                             const newAmounts = [...userAmounts];
                             newAmounts[i] = amount;
                             
-                            // 检查总投入是否超过限制
+                            // 检查总投入是否超过投入最大金额
                             const totalInvestment = newAmounts.reduce((sum, amt) => sum + amt, 0);
                             if (totalInvestment <= maxSingleInvestment) {
                                 candidates.push([...newAmounts]);
@@ -872,11 +872,11 @@
                             }
                             newAmount = Math.max(100, Math.min(maxSingleInvestment, newAmount));
                             
-                            // 检查总投入是否合理
+                            // 检查总投入是否超过投入最大金额
                             const totalAmount = amounts.reduce((sum, amount, index) => 
                                 index === i ? sum + newAmount : sum + amount, 0);
                             
-                            if (totalAmount <= maxSingleInvestment * entryCount) {
+                            if (totalAmount <= maxSingleInvestment) {
                                 amounts[i] = newAmount;
                                 const stopLossPrice = this.calculateActualStopLossPrice(prices, amounts, maxLoss);
                                 
@@ -940,7 +940,7 @@
                     return false;
                 }
                 
-                // 约束2：总投入金额 <= 单次投入最大金额
+                // 约束2：总投入金额 <= 投入最大金额
                 const totalInvestment = amounts.reduce((sum, amount) => sum + amount, 0);
                 if (totalInvestment > maxSingleInvestment) {
                     return false;
@@ -949,7 +949,7 @@
                 return true;
             }
 
-            // 检查总投入是否超过限制并显示提醒
+            // 检查总投入是否超过投入最大金额并显示提醒
             checkTotalInvestmentLimit(totalInvestment, maxSingleInvestment) {
                 const riskWarning = document.getElementById('riskWarning');
                 
