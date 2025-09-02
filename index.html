@@ -692,27 +692,12 @@
 
 
 
-            // 保留最多4位有效数字的函数
-            toSignificantFigures(number, significantFigures = 4) {
-                if (number === 0) return '0';
-                if (isNaN(number) || !isFinite(number)) return number.toString();
-                
-                // 将数字转换为科学计数法，然后保留指定有效数字
-                const exponential = number.toExponential(significantFigures - 1);
-                const [coefficient, exponent] = exponential.split('e');
-                
-                // 如果指数为0，直接返回系数
-                if (exponent === '0') {
-                    return parseFloat(coefficient).toString();
-                }
-                
-                // 否则返回科学计数法格式
-                return exponential;
-            }
-
             formatNumber(number) {
-                // 使用4位有效数字格式化
-                return this.toSignificantFigures(number, 4);
+                // 小数点后最多保留4位，整数不显示小数
+                if (Number.isInteger(number)) {
+                    return number.toString();
+                }
+                return number.toFixed(4).replace(/\.?0+$/, '');
             }
 
             calculateDCARecommendations(prices, maxSingleInvestment) {
