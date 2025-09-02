@@ -293,22 +293,9 @@
         <div class="form-group">
             <label for="maxSingleInvestment">
                 单次投入最大金额 (USD)
-                <span style="color: var(--text-secondary); font-size: 0.9rem; font-weight: normal;">
-                    （用于DCA策略推荐）
-                </span>
             </label>
             <input type="number" id="maxSingleInvestment" placeholder="例如: 1500" step="any" value="1500">
             <div class="error" id="maxSingleInvestmentError"></div>
-            <div style="background-color: rgba(16, 185, 129, 0.1); border: 1px solid var(--success-color); border-radius: 6px; padding: 0.75rem; margin-top: 0.5rem;">
-                <div style="color: var(--success-color); font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem;">
-                    🎯 优化策略说明
-                </div>
-                <div style="color: var(--text-secondary); font-size: 0.85rem;">
-                    • 第一次入场金额 ≥ 600U（强制约束）<br>
-                    • 优化目标：最小化最终止损价格<br>
-                    • 采用梯度下降法自动优化DCA分配
-                </div>
-            </div>
         </div>
 
         <div style="border-bottom: 2px solid var(--border-color); margin: 2rem 0;"></div>
