@@ -818,9 +818,12 @@
                     }
                 }
                 
-                // 如果用户已输入金额，基于这些金额进行微调优化
+                // 如果用户已输入金额，直接使用这些金额
                 if (userAmounts.length === entryCount) {
-                    // 在用户金额附近进行网格搜索
+                    // 添加用户原始金额作为候选
+                    candidates.push([...userAmounts]);
+                    
+                    // 在用户金额附近进行微调优化
                     for (let i = 0; i < entryCount; i++) {
                         const baseAmount = userAmounts[i];
                         const minAmount = Math.max(100, baseAmount - 200); // 允许减少200
@@ -834,31 +837,6 @@
                             const totalInvestment = newAmounts.reduce((sum, amt) => sum + amt, 0);
                             if (totalInvestment <= maxSingleInvestment) {
                                 candidates.push([...newAmounts]);
-                            }
-                        }
-                    }
-                    
-                    // 也添加用户原始金额作为候选
-                    candidates.push([...userAmounts]);
-                } else {
-                    // 如果没有用户输入，生成满足约束的候选解
-                    if (entryCount === 2) {
-                        // 两次入场：第一次从600开始，第二次在合理范围内
-                        for (let firstAmount = minFirstAmount; firstAmount <= maxSingleInvestment - 100; firstAmount += gridStep) {
-                            for (let secondAmount = 100; secondAmount <= maxSingleInvestment - firstAmount; secondAmount += gridStep) {
-                                if (firstAmount + secondAmount <= maxSingleInvestment) {
-                                    candidates.push([firstAmount, secondAmount]);
-                                }
-                            }
-                        }
-                    } else if (entryCount === 3) {
-                        // 三次入场：确保总投入 <= maxSingleInvestment
-                        for (let firstAmount = minFirstAmount; firstAmount <= maxSingleInvestment - 200; firstAmount += gridStep) {
-                            for (let secondAmount = 100; secondAmount <= maxSingleInvestment - firstAmount - 100; secondAmount += gridStep) {
-                                const thirdAmount = maxSingleInvestment - firstAmount - secondAmount;
-                                if (thirdAmount >= 100) {
-                                    candidates.push([firstAmount, secondAmount, thirdAmount]);
-                                }
                             }
                         }
                     }
