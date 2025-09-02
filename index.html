@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>现货仓位计算器</title>
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --secondary-color: #1e40af;
+            --error-color: #ef4444;
+            --success-color: #10b981;
+            --background-color: #f8fafc;
+            --card-background: #ffffff;
+            --border-color: #e2e8f0;
+            --text-primary: #1f2937;
+            --text-secondary: #4b5563;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            background-color: var(--background-color);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: var(--card-background);
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 2rem;
+            transition: transform 0.2s ease;
+        }
+
+        .container:hover {
+            transform: translateY(-2px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .header h1 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.2s ease;
+            background-color: var(--background-color);
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            background-color: white;
+        }
+
+        .entry-form {
+            background-color: var(--background-color);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .entry-form.entry-2, .entry-form.entry-3 {
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .entry-form h3 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+        }
+
+        .entry-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .add-entry-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 1.5rem;
+        }
+
+        .add-entry-btn:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-1px);
+        }
+
+        .add-entry-btn:disabled {
+            background-color: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .remove-entry-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background-color: var(--error-color);
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .remove-entry-btn:hover {
+            background-color: #dc2626;
+            transform: scale(1.1);
+        }
+
+        .result {
+            margin-top: 2.5rem;
+            padding: 1.5rem;
+            background-color: var(--background-color);
+            border-radius: 12px;
+            border: 2px solid var(--border-color);
+        }
+
+        .result-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .result-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            transition: background-color 0.2s ease;
+        }
+
+        .result-item:hover {
+            background-color: rgba(59, 130, 246, 0.05);
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin: 0 -0.75rem;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .result-value {
+            font-family: 'SF Mono', SFMono-Regular, Consolas, monospace;
+            font-size: 1.1rem;
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+
+        .section-title {
+            font-weight: 700;
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .error {
+            color: var(--error-color);
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            min-height: 1.25rem;
+        }
+
+        .stop-loss-display {
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 2px solid var(--error-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        .stop-loss-display .label {
+            color: var(--error-color);
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stop-loss-display .price {
+            color: var(--error-color);
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-family: 'SF Mono', SFMono-Regular, Consolas, monospace;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 1.5rem;
+            }
+
+            .entry-inputs {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .result {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>现货仓位计算器</h1>
+            <p>基于风险管理的现货仓位计算工具</p>
+        </div>
+        
+        <div class="form-group">
+            <label for="maxLoss">
+                单笔交易最大止损额 (USD)
+            </label>
+            <input type="number" id="maxLoss" placeholder="例如: 1000" step="any">
+            <div class="error" id="maxLossError"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="maxSingleInvestment">
+                单次投入最大金额 (USD)
+                <span style="color: var(--text-secondary); font-size: 0.9rem; font-weight: normal;">
+                    （用于DCA策略推荐）
+                </span>
+            </label>
+            <input type="number" id="maxSingleInvestment" placeholder="例如: 1500" step="any" value="1500">
+            <div class="error" id="maxSingleInvestmentError"></div>
+        </div>
+
+        <div style="border-bottom: 2px solid var(--border-color); margin: 2rem 0;"></div>
+
+        <!-- 第一次入场 -->
+        <div class="entry-form" id="entry-1">
+            <h3>第一次入场</h3>
+            <div class="entry-inputs">
+                <div class="form-group">
+                    <label for="entryPrice1">入场价格 (USD)</label>
+                    <input type="number" id="entryPrice1" placeholder="例如: 50000" step="any">
+                    <div class="error" id="entryPrice1Error"></div>
+                </div>
+                <div class="form-group">
+                    <label for="entryAmount1">入场金额 (USD)</label>
+                    <input type="number" id="entryAmount1" placeholder="例如: 10000" step="any">
+                    <div class="error" id="entryAmount1Error"></div>
+                    <div class="dca-recommendation" id="dcaRecommendation1" style="display: none;">
+                        <span style="color: var(--success-color); font-size: 0.9rem; font-weight: 600;">
+                            💡 DCA推荐金额: <span id="dcaAmount1">-</span> USD
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二次入场 -->
+        <div class="entry-form entry-2" id="entry-2" style="display: none;">
+            <button class="remove-entry-btn" onclick="removeEntry(2)">×</button>
+            <h3>第二次入场</h3>
+            <div class="entry-inputs">
+                <div class="form-group">
+                    <label for="entryPrice2">入场价格 (USD)</label>
+                    <input type="number" id="entryPrice2" placeholder="例如: 48000" step="any">
+                    <div class="error" id="entryPrice2Error"></div>
+                </div>
+                <div class="form-group">
+                    <label for="entryAmount2">入场金额 (USD)</label>
+                    <input type="number" id="entryAmount2" placeholder="例如: 8000" step="any">
+                    <div class="error" id="entryAmount2Error"></div>
+                    <div class="dca-recommendation" id="dcaRecommendation2" style="display: none;">
+                        <span style="color: var(--success-color); font-size: 0.9rem; font-weight: 600;">
+                            💡 DCA推荐金额: <span id="dcaAmount2">-</span> USD
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第三次入场 -->
+        <div class="entry-form entry-3" id="entry-3" style="display: none;">
+            <button class="remove-entry-btn" onclick="removeEntry(3)">×</button>
+            <h3>第三次入场</h3>
+            <div class="entry-inputs">
+                <div class="form-group">
+                    <label for="entryPrice3">入场价格 (USD)</label>
+                    <input type="number" id="entryPrice3" placeholder="例如: 46000" step="any">
+                    <div class="error" id="entryPrice3Error"></div>
+                </div>
+                <div class="form-group">
+                    <label for="entryAmount3">入场金额 (USD)</label>
+                    <input type="number" id="entryAmount3" placeholder="例如: 6000" step="any">
+                    <div class="error" id="entryAmount3Error"></div>
+                    <div class="dca-recommendation" id="dcaRecommendation3" style="display: none;">
+                        <span style="color: var(--success-color); font-size: 0.9rem; font-weight: 600;">
+                            💡 DCA推荐金额: <span id="dcaAmount3">-</span> USD
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button class="add-entry-btn" id="addEntryBtn" onclick="addEntry()">+ 添加入场</button>
+
+        <div class="result">
+            <div class="result-section">
+                <div class="section-title">综合计算结果</div>
+                <div class="result-item">
+                    <span class="result-label">总投入金额 (USD)</span>
+                    <span class="result-value" id="totalInvestment">-</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">平均入场价格 (USD)</span>
+                    <span class="result-value" id="averageEntryPrice">-</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">总仓位数量</span>
+                    <span class="result-value" id="totalPositionSize">-</span>
+                </div>
+            </div>
+
+            <div class="result-section">
+                <div class="section-title">最终止损价格</div>
+                <div class="stop-loss-display" id="finalStopLoss" style="display: none;">
+                    <div class="label">基于最大止损额的综合止损价格</div>
+                    <div class="price" id="finalStopLossPrice">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class SpotPositionCalculator {
+            constructor() {
+                if (window.spotPositionCalculator) {
+                    return window.spotPositionCalculator;
+                }
+                
+                this.storageKey = 'spotPositionCalculatorCache';
+                this.maxEntries = 3;
+                this.currentEntries = 1;
+                this.initializeElements();
+                this.loadCache();
+                this.initializeEventListeners();
+                this.updateAddButton();
+                
+                window.spotPositionCalculator = this;
+            }
+
+            initializeElements() {
+                this.inputs = {
+                    maxLoss: document.getElementById('maxLoss'),
+                    maxSingleInvestment: document.getElementById('maxSingleInvestment'),
+                    entryPrice1: document.getElementById('entryPrice1'),
+                    entryAmount1: document.getElementById('entryAmount1'),
+                    entryPrice2: document.getElementById('entryPrice2'),
+                    entryAmount2: document.getElementById('entryAmount2'),
+                    entryPrice3: document.getElementById('entryPrice3'),
+                    entryAmount3: document.getElementById('entryAmount3')
+                };
+
+                this.errors = {
+                    maxLoss: document.getElementById('maxLossError'),
+                    maxSingleInvestment: document.getElementById('maxSingleInvestmentError'),
+                    entryPrice1: document.getElementById('entryPrice1Error'),
+                    entryAmount1: document.getElementById('entryAmount1Error'),
+                    entryPrice2: document.getElementById('entryPrice2Error'),
+                    entryAmount2: document.getElementById('entryAmount2Error'),
+                    entryPrice3: document.getElementById('entryPrice3Error'),
+                    entryAmount3: document.getElementById('entryAmount3Error')
+                };
+
+                this.displays = {
+                    totalInvestment: document.getElementById('totalInvestment'),
+                    averageEntryPrice: document.getElementById('averageEntryPrice'),
+                    totalPositionSize: document.getElementById('totalPositionSize'),
+                    finalStopLossPrice: document.getElementById('finalStopLossPrice')
+                };
+
+                this.dcaRecommendations = {
+                    1: document.getElementById('dcaRecommendation1'),
+                    2: document.getElementById('dcaRecommendation2'),
+                    3: document.getElementById('dcaRecommendation3')
+                };
+
+                this.dcaAmounts = {
+                    1: document.getElementById('dcaAmount1'),
+                    2: document.getElementById('dcaAmount2'),
+                    3: document.getElementById('dcaAmount3')
+                };
+
+
+            }
+
+            loadCache() {
+                try {
+                    const cachedData = JSON.parse(localStorage.getItem(this.storageKey) || '{}');
+                    Object.entries(this.inputs).forEach(([key, input]) => {
+                        if (cachedData[key]) {
+                            input.value = cachedData[key];
+                        }
+                    });
+                    if (cachedData.currentEntries) {
+                        this.currentEntries = cachedData.currentEntries;
+                        this.updateEntryForms();
+                    }
+                } catch (error) {
+                    console.error('加载缓存失败:', error);
+                }
+            }
+
+            saveCache() {
+                try {
+                    const dataToCache = {};
+                    Object.entries(this.inputs).forEach(([key, input]) => {
+                        dataToCache[key] = input.value;
+                    });
+                    dataToCache.currentEntries = this.currentEntries;
+                    localStorage.setItem(this.storageKey, JSON.stringify(dataToCache));
+                } catch (error) {
+                    console.error('保存缓存失败:', error);
+                }
+            }
+
+            initializeEventListeners() {
+                const handleInput = () => {
+                    this.calculate();
+                    this.saveCache();
+                };
+
+                Object.values(this.inputs).forEach(input => {
+                    if (input) {
+                        input.addEventListener('input', handleInput);
+                        input.addEventListener('change', handleInput);
+                    }
+                });
+            }
+
+            addEntry() {
+                if (this.currentEntries < this.maxEntries) {
+                    this.currentEntries++;
+                    this.updateEntryForms();
+                    this.updateAddButton();
+                    this.saveCache();
+                }
+            }
+
+            removeEntry(entryNumber) {
+                if (this.currentEntries > 1) {
+                    this.inputs[`entryPrice${entryNumber}`].value = '';
+                    this.inputs[`entryAmount${entryNumber}`].value = '';
+                    
+                    this.currentEntries--;
+                    this.updateEntryForms();
+                    this.updateAddButton();
+                    this.calculate();
+                    this.saveCache();
+                }
+            }
+
+            updateEntryForms() {
+                for (let i = 2; i <= 3; i++) {
+                    const entryForm = document.getElementById(`entry-${i}`);
+                    if (i <= this.currentEntries) {
+                        entryForm.style.display = 'block';
+                    } else {
+                        entryForm.style.display = 'none';
+                    }
+                }
+            }
+
+            updateAddButton() {
+                const addBtn = document.getElementById('addEntryBtn');
+                if (this.currentEntries >= this.maxEntries) {
+                    addBtn.disabled = true;
+                    addBtn.textContent = '已达到最大入场次数';
+                } else {
+                    addBtn.disabled = false;
+                    addBtn.textContent = '+ 添加入场';
+                }
+            }
+
+            validateInputs() {
+                Object.values(this.errors).forEach(el => el.textContent = '');
+
+                const maxLoss = parseFloat(this.inputs.maxLoss.value);
+                if (!maxLoss || maxLoss <= 0) {
+                    this.errors.maxLoss.textContent = '请输入有效的最大止损金额';
+                    return false;
+                }
+
+                const maxSingleInvestment = parseFloat(this.inputs.maxSingleInvestment.value);
+                if (!maxSingleInvestment || maxSingleInvestment <= 0) {
+                    this.errors.maxSingleInvestment.textContent = '请输入有效的单次投入最大金额';
+                    return false;
+                }
+
+                let hasValidEntry = false;
+                for (let i = 1; i <= this.currentEntries; i++) {
+                    const price = parseFloat(this.inputs[`entryPrice${i}`].value);
+                    const amount = parseFloat(this.inputs[`entryAmount${i}`].value);
+
+                    if (!price || price <= 0) {
+                        this.errors[`entryPrice${i}`].textContent = '请输入有效的入场价格';
+                        return false;
+                    }
+                    if (!amount || amount <= 0) {
+                        this.errors[`entryAmount${i}`].textContent = '请输入有效的入场金额';
+                        return false;
+                    }
+                    hasValidEntry = true;
+                }
+
+                if (!hasValidEntry) {
+                    return false;
+                }
+
+                return true;
+            }
+
+            calculate() {
+                if (!this.validateInputs()) {
+                    this.clearResults();
+                    return;
+                }
+
+                try {
+                    const maxLoss = parseFloat(this.inputs.maxLoss.value);
+                    const maxSingleInvestment = parseFloat(this.inputs.maxSingleInvestment.value);
+                    const entries = [];
+                    const prices = [];
+
+                    for (let i = 1; i <= this.currentEntries; i++) {
+                        const price = parseFloat(this.inputs[`entryPrice${i}`].value);
+                        const amount = parseFloat(this.inputs[`entryAmount${i}`].value);
+                        if (price && amount) {
+                            entries.push({ price, amount });
+                            prices.push(price);
+                        }
+                    }
+
+                    if (entries.length === 0) {
+                        this.clearResults();
+                        return;
+                    }
+
+                    const totalInvestment = entries.reduce((sum, entry) => sum + entry.amount, 0);
+                    const totalPositionSize = entries.reduce((sum, entry) => sum + (entry.amount / entry.price), 0);
+                    const averageEntryPrice = totalInvestment / totalPositionSize;
+
+
+
+                    const finalStopLossPrice = this.calculateFinalStopLossPrice(entries, maxLoss);
+
+                    // 计算DCA推荐金额
+                    this.calculateDCARecommendations(prices, maxSingleInvestment);
+
+                    this.updateResults({
+                        totalInvestment,
+                        averageEntryPrice,
+                        totalPositionSize,
+                        finalStopLossPrice
+                    });
+
+                } catch (error) {
+                    console.error('计算错误:', error);
+                    this.clearResults();
+                }
+            }
+
+
+
+            calculateFinalStopLossPrice(entries, maxLoss) {
+                const totalPositionSize = entries.reduce((sum, entry) => sum + (entry.amount / entry.price), 0);
+                const totalInvestment = entries.reduce((sum, entry) => sum + entry.amount, 0);
+                
+                const weightedAveragePrice = entries.reduce((sum, entry) => {
+                    const weight = entry.amount / totalInvestment;
+                    return sum + (entry.price * weight);
+                }, 0);
+
+                const stopLossAmount = maxLoss / totalPositionSize;
+                return weightedAveragePrice - stopLossAmount;
+            }
+
+
+
+            updateResults(results) {
+                this.displays.totalInvestment.textContent = this.formatNumber(results.totalInvestment);
+                this.displays.averageEntryPrice.textContent = this.formatNumber(results.averageEntryPrice);
+                this.displays.totalPositionSize.textContent = this.formatNumber(results.totalPositionSize);
+                this.displays.finalStopLossPrice.textContent = this.formatNumber(results.finalStopLossPrice);
+
+                document.getElementById('finalStopLoss').style.display = 'block';
+            }
+
+
+
+            formatNumber(number) {
+                return new Intl.NumberFormat('zh-CN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 8
+                }).format(number);
+            }
+
+            calculateDCARecommendations(prices, maxSingleInvestment) {
+                const entryCount = prices.length;
+                
+                if (entryCount < 2) {
+                    // 单次入场不需要DCA推荐
+                    return;
+                }
+
+                // 使用简化的DCA策略：基于价格权重的分配
+                const totalWeight = prices.reduce((sum, price, index) => {
+                    // 价格越低，权重越高（DCA策略）
+                    return sum + (1 / price);
+                }, 0);
+
+                const recommendedAmounts = prices.map(price => {
+                    const weight = (1 / price) / totalWeight;
+                    return maxSingleInvestment * weight;
+                });
+
+                // 显示DCA推荐金额
+                for (let i = 0; i < entryCount; i++) {
+                    const entryNumber = i + 1;
+                    if (this.dcaRecommendations[entryNumber] && this.dcaAmounts[entryNumber]) {
+                        this.dcaRecommendations[entryNumber].style.display = 'block';
+                        this.dcaAmounts[entryNumber].textContent = this.formatNumber(recommendedAmounts[i]);
+                    }
+                }
+            }
+
+            clearResults() {
+                Object.values(this.displays).forEach(display => {
+                    display.textContent = '-';
+                });
+
+                // 隐藏DCA推荐
+                Object.values(this.dcaRecommendations).forEach(rec => {
+                    rec.style.display = 'none';
+                });
+
+                document.getElementById('finalStopLoss').style.display = 'none';
+            }
+        }
+
+        function addEntry() {
+            if (window.spotPositionCalculator) {
+                window.spotPositionCalculator.addEntry();
+            }
+        }
+
+        function removeEntry(entryNumber) {
+            if (window.spotPositionCalculator) {
+                window.spotPositionCalculator.removeEntry(entryNumber);
+            }
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                new SpotPositionCalculator();
+            });
+        } else {
+            new SpotPositionCalculator();
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && !window.spotPositionCalculator) {
+                new SpotPositionCalculator();
+            }
+        });
+    </script>
+</body>
+</html>
