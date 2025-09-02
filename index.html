@@ -640,9 +640,9 @@
                         return;
                     }
 
-                    const totalInvestment = this.toSignificantFigures(entries.reduce((sum, entry) => sum + entry.amount, 0), 4);
-                    const totalPositionSize = this.toSignificantFigures(entries.reduce((sum, entry) => sum + (entry.amount / entry.price), 0), 4);
-                    const averageEntryPrice = this.toSignificantFigures(totalInvestment / totalPositionSize, 4);
+                    const totalInvestment = entries.reduce((sum, entry) => sum + entry.amount, 0);
+                    const totalPositionSize = entries.reduce((sum, entry) => sum + (entry.amount / entry.price), 0);
+                    const averageEntryPrice = totalInvestment / totalPositionSize;
 
 
 
@@ -667,16 +667,16 @@
 
 
             calculateFinalStopLossPrice(entries, maxLoss) {
-                const totalPositionSize = this.toSignificantFigures(entries.reduce((sum, entry) => sum + (entry.amount / entry.price), 0), 4);
-                const totalInvestment = this.toSignificantFigures(entries.reduce((sum, entry) => sum + entry.amount, 0), 4);
+                const totalPositionSize = entries.reduce((sum, entry) => sum + (entry.amount / entry.price), 0);
+                const totalInvestment = entries.reduce((sum, entry) => sum + entry.amount, 0);
                 
-                const weightedAveragePrice = this.toSignificantFigures(entries.reduce((sum, entry) => {
+                const weightedAveragePrice = entries.reduce((sum, entry) => {
                     const weight = entry.amount / totalInvestment;
                     return sum + (entry.price * weight);
-                }, 0), 4);
+                }, 0);
 
-                const stopLossAmount = this.toSignificantFigures(maxLoss / totalPositionSize, 4);
-                return this.toSignificantFigures(weightedAveragePrice - stopLossAmount, 4);
+                const stopLossAmount = maxLoss / totalPositionSize;
+                return weightedAveragePrice - stopLossAmount;
             }
 
 
@@ -784,7 +784,6 @@
                 
                 // 网格搜索：尝试不同的金额分配
                 const gridStep = 50; // 50U的步长
-                const maxTotalInvestment = maxSingleInvestment * entryCount;
                 
                 // 生成候选解
                 const candidates = this.generateCandidates(prices, maxSingleInvestment, minFirstAmount, gridStep);
@@ -838,7 +837,7 @@
                 let bestAmounts = [...amounts];
                 let bestStopLoss = this.calculateActualStopLossPrice(prices, amounts, maxLoss);
                 
-                const learningRate = 50; // 更大的学习率
+                const gridStep = 50; // 局部优化的步长
                 const maxIterations = 100;
                 
                 for (let iteration = 0; iteration < maxIterations; iteration++) {
@@ -885,17 +884,17 @@
 
             calculateStopLossPrice(prices, amounts) {
                 // 计算加权平均价格
-                const totalAmount = this.toSignificantFigures(amounts.reduce((sum, amount) => sum + amount, 0), 4);
+                const totalAmount = amounts.reduce((sum, amount) => sum + amount, 0);
                 if (totalAmount === 0) return Infinity;
                 
-                const weightedAveragePrice = this.toSignificantFigures(prices.reduce((sum, price, index) => {
+                const weightedAveragePrice = prices.reduce((sum, price, index) => {
                     return sum + (price * amounts[index]);
-                }, 0) / totalAmount, 4);
+                }, 0) / totalAmount;
 
                 // 计算总仓位
-                const totalPosition = this.toSignificantFigures(amounts.reduce((sum, amount, index) => {
+                const totalPosition = amounts.reduce((sum, amount, index) => {
                     return sum + (amount / prices[index]);
-                }, 0), 4);
+                }, 0);
 
                 // 返回加权平均价格（越低越好）
                 return weightedAveragePrice;
@@ -903,19 +902,19 @@
 
             // 计算实际的止损价格（考虑最大止损金额）
             calculateActualStopLossPrice(prices, amounts, maxLoss) {
-                const totalAmount = this.toSignificantFigures(amounts.reduce((sum, amount) => sum + amount, 0), 4);
+                const totalAmount = amounts.reduce((sum, amount) => sum + amount, 0);
                 if (totalAmount === 0) return Infinity;
                 
-                const weightedAveragePrice = this.toSignificantFigures(prices.reduce((sum, price, index) => {
+                const weightedAveragePrice = prices.reduce((sum, price, index) => {
                     return sum + (price * amounts[index]);
-                }, 0) / totalAmount, 4);
+                }, 0) / totalAmount;
 
-                const totalPosition = this.toSignificantFigures(amounts.reduce((sum, amount, index) => {
+                const totalPosition = amounts.reduce((sum, amount, index) => {
                     return sum + (amount / prices[index]);
-                }, 0), 4);
+                }, 0);
 
                 // 实际止损价格 = 加权平均价格 - (最大止损金额 / 总仓位)
-                const stopLossPrice = this.toSignificantFigures(weightedAveragePrice - (maxLoss / totalPosition), 4);
+                const stopLossPrice = weightedAveragePrice - (maxLoss / totalPosition);
                 return stopLossPrice;
             }
 
