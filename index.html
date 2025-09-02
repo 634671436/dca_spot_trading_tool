@@ -370,6 +370,16 @@
 
         <button class="add-entry-btn" id="addEntryBtn" onclick="addEntry()">+ 添加入场</button>
 
+        <!-- 风险提醒区域 -->
+        <div id="riskWarning" style="display: none; background-color: rgba(239, 68, 68, 0.1); border: 2px solid var(--error-color); border-radius: 8px; padding: 1rem; margin: 1rem 0; text-align: center;">
+            <div style="color: var(--error-color); font-weight: 600; font-size: 1rem; margin-bottom: 0.5rem;">
+                ⚠️ 风险提醒
+            </div>
+            <div style="color: var(--error-color); font-size: 0.9rem;">
+                已超过总投入金额，请调整入场金额！
+            </div>
+        </div>
+
         <div class="result">
             <div class="result-section">
                 <div class="section-title">综合计算结果</div>
@@ -635,6 +645,9 @@
 
                     const finalStopLossPrice = this.calculateFinalStopLossPrice(entries, maxLoss);
 
+                    // 检查总投入是否超过限制
+                    this.checkTotalInvestmentLimit(totalInvestment, maxSingleInvestment);
+
                     // 计算DCA推荐金额
                     this.calculateDCARecommendations(prices, maxSingleInvestment);
 
@@ -715,7 +728,6 @@
             showOptimizationDetails(prices, recommendedAmounts, maxSingleInvestment) {
                 const maxLoss = parseFloat(this.inputs.maxLoss.value);
                 const entryCount = prices.length;
-                const targetPosition = 1500; // 目标仓位
                 
                 // 计算推荐方案的止损价格和仓位
                 const recommendedStopLoss = this.calculateActualStopLossPrice(prices, recommendedAmounts, maxLoss);
@@ -739,22 +751,19 @@
                 // 在控制台输出详细信息
                 console.log('=== DCA优化详情 ===');
                 console.log('入场价格:', prices);
-                console.log('目标仓位:', targetPosition);
+                console.log('单次投入最大金额:', maxSingleInvestment);
                 console.log('推荐金额:', recommendedAmounts);
                 console.log('推荐方案:', {
                     '止损价格': recommendedStopLoss,
-                    '总仓位': recommendedPosition,
-                    '仓位差异': Math.abs(recommendedPosition - targetPosition)
+                    '总投入': recommendedPosition
                 });
                 console.log('平均分配方案:', {
                     '止损价格': averageStopLoss,
-                    '总仓位': averagePosition,
-                    '仓位差异': Math.abs(averagePosition - targetPosition)
+                    '总投入': averagePosition
                 });
                 console.log('自定义方案(600+900):', {
                     '止损价格': customStopLoss,
-                    '总仓位': customPosition,
-                    '仓位差异': Math.abs(customPosition - targetPosition)
+                    '总投入': customPosition
                 });
                 console.log('优化效果:', {
                     '推荐vs平均': recommendedStopLoss - averageStopLoss,
@@ -780,7 +789,7 @@
                 // 评估每个候选解（使用约束优化）
                 for (const candidate of candidates) {
                     // 只考虑满足约束条件的候选解
-                    if (this.checkConstraints(candidate, minFirstAmount, 1500)) {
+                    if (this.checkConstraints(candidate, minFirstAmount, maxSingleInvestment)) {
                         const stopLossPrice = this.calculateActualStopLossPrice(prices, candidate, maxLoss);
                         if (stopLossPrice < bestStopLoss) {
                             bestStopLoss = stopLossPrice;
@@ -799,7 +808,6 @@
             generateCandidates(prices, maxSingleInvestment, minFirstAmount, gridStep) {
                 const entryCount = prices.length;
                 const candidates = [];
-                const targetPosition = 1500; // 目标总仓位
                 
                 // 基于用户已输入的金额进行优化
                 const userAmounts = [];
@@ -812,7 +820,7 @@
                 
                 // 如果用户已输入金额，基于这些金额进行微调优化
                 if (userAmounts.length === entryCount) {
-                    // 在用户金额附近进行网格搜索，确保总仓位=1500
+                    // 在用户金额附近进行网格搜索
                     for (let i = 0; i < entryCount; i++) {
                         const baseAmount = userAmounts[i];
                         const minAmount = Math.max(100, baseAmount - 200); // 允许减少200
@@ -822,17 +830,9 @@
                             const newAmounts = [...userAmounts];
                             newAmounts[i] = amount;
                             
-                            // 调整其他金额，确保总仓位=1500
-                            const currentTotal = newAmounts.reduce((sum, amt) => sum + amt, 0);
-                            const remainingAmount = targetPosition - currentTotal;
-                            
-                            if (remainingAmount >= 100) {
-                                // 将剩余金额分配给其他入场
-                                for (let j = 0; j < entryCount; j++) {
-                                    if (j !== i) {
-                                        newAmounts[j] = remainingAmount / (entryCount - 1);
-                                    }
-                                }
+                            // 检查总投入是否超过限制
+                            const totalInvestment = newAmounts.reduce((sum, amt) => sum + amt, 0);
+                            if (totalInvestment <= maxSingleInvestment) {
                                 candidates.push([...newAmounts]);
                             }
                         }
@@ -843,18 +843,19 @@
                 } else {
                     // 如果没有用户输入，生成满足约束的候选解
                     if (entryCount === 2) {
-                        // 两次入场：第一次从600开始，第二次补足到1500
-                        for (let firstAmount = minFirstAmount; firstAmount <= targetPosition - 100; firstAmount += gridStep) {
-                            const secondAmount = targetPosition - firstAmount;
-                            if (secondAmount >= 100) {
-                                candidates.push([firstAmount, secondAmount]);
+                        // 两次入场：第一次从600开始，第二次在合理范围内
+                        for (let firstAmount = minFirstAmount; firstAmount <= maxSingleInvestment - 100; firstAmount += gridStep) {
+                            for (let secondAmount = 100; secondAmount <= maxSingleInvestment - firstAmount; secondAmount += gridStep) {
+                                if (firstAmount + secondAmount <= maxSingleInvestment) {
+                                    candidates.push([firstAmount, secondAmount]);
+                                }
                             }
                         }
                     } else if (entryCount === 3) {
-                        // 三次入场：确保总仓位=1500
-                        for (let firstAmount = minFirstAmount; firstAmount <= targetPosition - 200; firstAmount += gridStep) {
-                            for (let secondAmount = 100; secondAmount <= targetPosition - firstAmount - 100; secondAmount += gridStep) {
-                                const thirdAmount = targetPosition - firstAmount - secondAmount;
+                        // 三次入场：确保总投入 <= maxSingleInvestment
+                        for (let firstAmount = minFirstAmount; firstAmount <= maxSingleInvestment - 200; firstAmount += gridStep) {
+                            for (let secondAmount = 100; secondAmount <= maxSingleInvestment - firstAmount - 100; secondAmount += gridStep) {
+                                const thirdAmount = maxSingleInvestment - firstAmount - secondAmount;
                                 if (thirdAmount >= 100) {
                                     candidates.push([firstAmount, secondAmount, thirdAmount]);
                                 }
@@ -955,19 +956,30 @@
             }
 
             // 检查是否满足约束条件
-            checkConstraints(amounts, minFirstAmount, targetPosition = 1500) {
+            checkConstraints(amounts, minFirstAmount, maxSingleInvestment) {
                 // 约束1：第一次入场 >= 600
                 if (amounts[0] < minFirstAmount) {
                     return false;
                 }
                 
-                // 约束2：总仓位必须打满1500
-                const totalPosition = amounts.reduce((sum, amount) => sum + amount, 0);
-                if (Math.abs(totalPosition - targetPosition) > 1) { // 允许1U的误差
+                // 约束2：总投入金额 <= 单次投入最大金额
+                const totalInvestment = amounts.reduce((sum, amount) => sum + amount, 0);
+                if (totalInvestment > maxSingleInvestment) {
                     return false;
                 }
                 
                 return true;
+            }
+
+            // 检查总投入是否超过限制并显示提醒
+            checkTotalInvestmentLimit(totalInvestment, maxSingleInvestment) {
+                const riskWarning = document.getElementById('riskWarning');
+                
+                if (totalInvestment > maxSingleInvestment) {
+                    riskWarning.style.display = 'block';
+                } else {
+                    riskWarning.style.display = 'none';
+                }
             }
 
             calculateStopLossGradients(prices, amounts) {
